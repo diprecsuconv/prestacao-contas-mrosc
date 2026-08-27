@@ -192,6 +192,26 @@ h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:27px;letter-
 .foot{margin-top:32px;text-align:center;font-size:12px;color:var(--ink-3);font-family:'IBM Plex Mono'}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;padding:13px 22px;border-radius:var(--radius-s);font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:transform .35s;z-index:99;font-weight:500}
 .toast.show{transform:translateX(-50%) translateY(0)}
+#graf-modal{position:fixed;inset:0;z-index:200;background:rgba(13,59,110,.55);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto}
+#graf-modal.show{display:flex}
+.graf-card{background:var(--surface);border-radius:16px;max-width:1000px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3);overflow:hidden;margin:auto}
+.graf-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--line-2);background:linear-gradient(135deg,var(--brand-d),var(--brand));color:#fff}
+.graf-title{font-family:'Space Grotesk';font-weight:700;font-size:19px}
+.graf-sub{font-size:12px;color:#C6DBF1;margin-top:3px}
+.graf-close{background:rgba(255,255,255,.15);color:#fff;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0}
+.graf-close:hover{background:rgba(255,255,255,.28)}
+.graf-body{padding:22px 24px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.graf-panel{border:1px solid var(--line-2);border-radius:12px;padding:16px}
+.graf-panel h4{font-family:'Space Grotesk';font-weight:600;font-size:14px;margin-bottom:14px}
+.graf-panel.full{grid-column:1/-1}
+.gb-track{display:flex;flex-direction:column;gap:10px}
+.gb-item{display:grid;grid-template-columns:1fr;gap:3px}
+.gb-top{display:flex;justify-content:space-between;font-size:12px}
+.gb-top .gk{color:var(--ink-2);font-weight:500}
+.gb-top .gv{font-family:'IBM Plex Mono';font-weight:600}
+.gb-outer{background:var(--surface-2);border-radius:6px;height:16px;overflow:hidden;border:1px solid var(--line-2)}
+.gb-fill{height:100%;border-radius:5px;min-width:2px}
+@media(max-width:760px){.graf-body{grid-template-columns:1fr}}
 
 @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}.cols2{grid-template-columns:1fr}
   .tf-cols,.ac-cols{grid-template-columns:1fr}.tbl-head{display:none}.ph-row{grid-template-columns:1fr 1fr}}
@@ -218,6 +238,8 @@ h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:27px;letter-
 
 <div class="wrap">
   <div class="kpis" id="kpis"></div>
+
+  <div id="proc-top"></div>
 
   <div class="section-h"><h2>Panorama geral</h2><div class="rule"></div></div>
   <div class="cols2">
@@ -246,6 +268,8 @@ h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:27px;letter-
     </div>
   </div>
 
+  <div id="proc-bottom"></div>
+  <div id="processos-block">
   <div class="section-h"><h2>Processos</h2><div class="rule"></div><span class="cnt" id="tbl-count"></span></div>
   <div class="filters">
     <div class="field"><label>Situação do prazo</label><select id="f-sit"></select></div>
@@ -255,7 +279,17 @@ h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:27px;letter-
     <button class="btn-clear" id="f-clear">Limpar filtros</button>
   </div>
   <div class="table-panel" id="table"></div>
+  </div>
   <div class="foot">Panorama da prestação de contas · DIPREC · dados atualizáveis pela planilha</div>
+</div>
+<div id="graf-modal">
+  <div class="graf-card">
+    <div class="graf-head">
+      <div><div class="graf-title" id="graf-title">Gráficos</div><div class="graf-sub" id="graf-sub"></div></div>
+      <button class="graf-close" id="graf-close">✕</button>
+    </div>
+    <div class="graf-body" id="graf-body"></div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -422,8 +456,15 @@ function render(){
   renderKPIs();renderStatusChart();renderDonut();renderBloco();renderGerencias();
   const data=filtered();renderPrazos(data);renderTable(data);
   document.getElementById("tbl-count").textContent=`${data.length} de ${records.length} processos`;
+  placeProcessos();
 }
-function rerender(){const data=filtered();renderKPIs();renderStatusChart();renderDonut();renderBloco();renderGerencias();renderPrazos(data);renderTable(data);document.getElementById("tbl-count").textContent=`${data.length} de ${records.length} processos`;}
+function isFiltered(){return !!(F.sit||F.ger||F.status||F.busca||F.bloco||F.fase);}
+function placeProcessos(){
+  const block=document.getElementById("processos-block");
+  const target=document.getElementById(isFiltered()?"proc-top":"proc-bottom");
+  if(block&&target&&block.parentElement!==target)target.appendChild(block);
+}
+function rerender(){const data=filtered();renderKPIs();renderStatusChart();renderDonut();renderBloco();renderGerencias();renderPrazos(data);renderTable(data);document.getElementById("tbl-count").textContent=`${data.length} de ${records.length} processos`;placeProcessos();}
 
 function renderKPIs(){
   const total=records.length;
@@ -431,11 +472,12 @@ function renderKPIs(){
   const exec=cnt("execucao"),pc=cnt("pc"),celeb=cnt("celebracao"),fin=cnt("final");
   const venc=records.filter(r=>r.sit==="vencido").length;
   const bloco=records.filter(r=>r.bloco).length;
-  const valor=records.reduce((s,r)=>s+(r.valor||0),0);
   const noFilter=!F.sit&&!F.ger&&!F.status&&!F.busca&&!F.bloco&&!F.fase;
+  const valor=(noFilter?records:filtered()).reduce((s,r)=>s+(r.valor||0),0);
+  const valorTag=noFilter?"soma dos termos":"nesta seleção";
   let cards=[{n:total,l:"Processos",tag:"ver todos",c:"var(--brand)",act:"all",active:noFilter}];
   if(INSTR==="tf"){
-    cards.push({n:fmtMoney(valor),l:"Valor acompanhado",tag:"soma dos termos",c:"var(--gold)",money:true});
+    cards.push({n:fmtMoney(valor),l:"Valor acompanhado",tag:valorTag,c:"var(--gold)",money:true});
     cards.push({n:exec,l:"Em execução",tag:"objeto em andamento",c:"var(--g-com)",act:"fase-execucao",active:F.fase==="execucao"});
     cards.push({n:pc,l:"Em prestação de contas",tag:"após a execução",c:"var(--aven)",act:"fase-pc",active:F.fase==="pc"});
     cards.push({n:fin,l:"Finalizados",tag:"tramitação concluída",c:"var(--conc)",act:"fase-final",active:F.fase==="final"});
@@ -595,6 +637,41 @@ document.getElementById("f-status").addEventListener("change",e=>{F.status=e.tar
 document.getElementById("f-busca").addEventListener("input",e=>{F.busca=e.target.value;rerender();});
 document.getElementById("f-clear").addEventListener("click",()=>{Object.keys(F).forEach(k=>F[k]=(k==="bloco"?false:""));["f-sit","f-ger","f-status"].forEach(id=>document.getElementById(id).value="");document.getElementById("f-busca").value="";rerender();});
 document.querySelectorAll("#toggle button").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("#toggle button").forEach(x=>x.classList.remove("active"));b.classList.add("active");INSTR=b.dataset.instr;Object.keys(F).forEach(k=>F[k]=(k==="bloco"?false:""));document.getElementById("f-busca").value="";calSelDay=null;render();}));
+/* ===== GRÁFICOS (modal) ===== */
+function gbars(items){ // items: [{k,v,c}]
+  const max=Math.max(1,...items.map(i=>i.v));
+  return `<div class="gb-track">`+items.map(i=>`<div class="gb-item"><div class="gb-top"><span class="gk">${i.k}</span><span class="gv">${i.money?fmtMoneyFull(i.v):i.v}</span></div><div class="gb-outer"><div class="gb-fill" style="width:${i.v/max*100}%;background:${i.c||'var(--brand)'}"></div></div></div>`).join("")+`</div>`;
+}
+function renderGraficos(){
+  const data=records; // todos do instrumento atual
+  document.getElementById("graf-title").textContent="Gráficos — "+(INSTR==="tf"?"Termo de Fomento":"Acordo de Cooperação");
+  document.getElementById("graf-sub").textContent=data.length+" processos";
+  // por status
+  const byStatus={};data.forEach(r=>{const s=r.status||"(sem status)";byStatus[s]=(byStatus[s]||0)+1;});
+  const gStatus=Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({k,v,c:statusColor(k)}));
+  // por situação de prazo
+  const sitOrder=["vencido","avencer","emdia","concluido"];const bySit={};sitOrder.forEach(k=>bySit[k]=0);data.forEach(r=>bySit[r.sit]++);
+  const gSit=sitOrder.map(k=>({k:SIT_META[k].l,v:bySit[k],c:SIT_META[k].c}));
+  // por gerência (na fila)
+  const gers=[...new Set(PHASES[INSTR].map(p=>p.resp))];
+  const gGer=gers.map(g=>({k:g,v:records.flatMap(r=>r.ativos.filter(p=>p.resp===g)).length,c:`var(${GER_COLOR[g]||'--brand'})`}));
+  let html='';
+  html+=`<div class="graf-panel"><h4>Processos por status</h4>${gbars(gStatus)}</div>`;
+  html+=`<div class="graf-panel"><h4>Situação dos prazos</h4>${gbars(gSit)}</div>`;
+  html+=`<div class="graf-panel"><h4>Processos por gerência (na fila)</h4>${gbars(gGer)}</div>`;
+  if(INSTR==="tf"){
+    // valor por situação de prazo
+    const valSit={};sitOrder.forEach(k=>valSit[k]=0);data.forEach(r=>valSit[r.sit]+=(r.valor||0));
+    const gVal=sitOrder.map(k=>({k:SIT_META[k].l,v:valSit[k],c:SIT_META[k].c,money:true}));
+    html+=`<div class="graf-panel"><h4>Valor por situação de prazo</h4>${gbars(gVal)}</div>`;
+  }
+  document.getElementById("graf-body").innerHTML=html;
+}
+const gm=document.getElementById("graf-modal");
+const _bg=document.getElementById("btn-graf");if(_bg)_bg.addEventListener("click",()=>{renderGraficos();gm.classList.add("show");});
+document.getElementById("graf-close").addEventListener("click",()=>gm.classList.remove("show"));
+gm.addEventListener("click",e=>{if(e.target===gm)gm.classList.remove("show");});
+
 let toastT;function toast(m){const el=document.getElementById("toast");el.textContent=m;el.className="toast show";clearTimeout(toastT);toastT=setTimeout(()=>el.className="toast",3000);}
 const rb=document.getElementById("btn-refresh");
 if((SHEET_CSV.tf&&SHEET_CSV.tf.indexOf("http")===0)||(SHEET_CSV.ac&&SHEET_CSV.ac.indexOf("http")===0)){
