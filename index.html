@@ -51,6 +51,8 @@ h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:27px;letter-
 .kpi .n.money{font-size:21px}
 .kpi .l{font-size:12px;color:var(--ink-2);margin-top:7px;font-weight:500}
 .kpi .tag{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3);margin-top:3px}
+.kpi.mgmt{border-style:dashed;border-color:var(--c)}
+.kpi-mgmt{position:absolute;top:8px;right:8px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);padding:2px 6px;border-radius:20px}
 
 .section-h{display:flex;align-items:baseline;gap:12px;margin:32px 0 15px}
 .section-h h2{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:18px;letter-spacing:-.01em}
@@ -459,6 +461,7 @@ function render(){
   placeProcessos();
 }
 function isFiltered(){return !!(F.sit||F.ger||F.status||F.busca||F.bloco||F.fase);}
+function clearAllF(){Object.keys(F).forEach(x=>F[x]=(x==="bloco"?false:""));["f-sit","f-ger","f-status"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});const b=document.getElementById("f-busca");if(b)b.value="";}
 function placeProcessos(){
   const block=document.getElementById("processos-block");
   const target=document.getElementById(isFiltered()?"proc-top":"proc-bottom");
@@ -481,26 +484,33 @@ function renderKPIs(){
     cards.push({n:exec,l:"Em execução",tag:"objeto em andamento",c:"var(--g-com)",act:"fase-execucao",active:F.fase==="execucao"});
     cards.push({n:pc,l:"Em prestação de contas",tag:"após a execução",c:"var(--aven)",act:"fase-pc",active:F.fase==="pc"});
     cards.push({n:fin,l:"Finalizados",tag:"tramitação concluída",c:"var(--conc)",act:"fase-final",active:F.fase==="final"});
-    cards.push({n:venc,l:"Prazo extrapolado",tag:"exigem ação",c:"var(--venc)",act:"sit-vencido",active:F.sit==="vencido"});
-    cards.push({n:bloco,l:"No bloco",tag:"aguardando apreciação",c:"var(--bloco)",act:"bloco",active:F.bloco});
+    cards.push({n:venc,l:"Prazo extrapolado",tag:"exigem ação",c:"var(--venc)",act:"sit-vencido",active:F.sit==="vencido",mgmt:true});
+    cards.push({n:bloco,l:"No bloco",tag:"aguardando apreciação",c:"var(--bloco)",act:"bloco",active:F.bloco,mgmt:true});
   } else {
     cards.push({n:celeb,l:"Em análise (Celebração)",tag:"aguardando celebração",c:"var(--g-diprec)",act:"fase-celebracao",active:F.fase==="celebracao"});
     cards.push({n:exec,l:"Em execução",tag:"objeto em andamento",c:"var(--g-com)",act:"fase-execucao",active:F.fase==="execucao"});
     cards.push({n:pc,l:"Em prestação de contas",tag:"após a execução",c:"var(--aven)",act:"fase-pc",active:F.fase==="pc"});
     cards.push({n:fin,l:"Finalizados",tag:"tramitação concluída",c:"var(--conc)",act:"fase-final",active:F.fase==="final"});
-    cards.push({n:venc,l:"Prazo extrapolado",tag:"exigem ação",c:"var(--venc)",act:"sit-vencido",active:F.sit==="vencido"});
+    cards.push({n:venc,l:"Prazo extrapolado",tag:"exigem ação",c:"var(--venc)",act:"sit-vencido",active:F.sit==="vencido",mgmt:true});
   }
   const kpel=document.getElementById("kpis");
   kpel.style.gridTemplateColumns=`repeat(${cards.length},minmax(0,1fr))`;
   kpel.innerHTML=cards.map(c=>
-    `<div class="kpi ${c.act?'clk':''} ${c.active?'active':''}" data-act="${c.act||''}" style="--c:${c.c}"><div class="n ${c.money?'money':''}">${c.n}</div><div class="l">${c.l}</div><div class="tag">${c.tag}</div></div>`
+    `<div class="kpi ${c.act?'clk':''} ${c.active?'active':''} ${c.mgmt?'mgmt':''}" data-act="${c.act||''}" style="--c:${c.c}">${c.mgmt?'<span class="kpi-mgmt">gestão interna</span>':''}<div class="n ${c.money?'money':''}">${c.n}</div><div class="l">${c.l}</div><div class="tag">${c.tag}</div></div>`
   ).join("");
   document.querySelectorAll(".kpi.clk").forEach(k=>k.addEventListener("click",()=>{
     const a=k.dataset.act;
-    if(a==="all"){Object.keys(F).forEach(x=>F[x]=(x==="bloco"?false:""));["f-sit","f-ger","f-status"].forEach(id=>document.getElementById(id).value="");document.getElementById("f-busca").value="";}
-    else if(a==="sit-vencido"){F.sit=(F.sit==="vencido"?"":"vencido");document.getElementById("f-sit").value=F.sit;}
-    else if(a==="bloco"){F.bloco=!F.bloco;}
-    else if(a.indexOf("fase-")===0){const fz=a.slice(5);F.fase=(F.fase===fz?"":fz);}
+    const wasActive=k.classList.contains("active");
+    // limpa todos os filtros primeiro (evita combinações confusas)
+    Object.keys(F).forEach(x=>F[x]=(x==="bloco"?false:""));
+    ["f-sit","f-ger","f-status"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("f-busca").value="";
+    // aplica só o clicado (se já estava ativo, apenas limpa = alterna)
+    if(!wasActive){
+      if(a==="sit-vencido"){F.sit="vencido";document.getElementById("f-sit").value="vencido";}
+      else if(a==="bloco"){F.bloco=true;}
+      else if(a.indexOf("fase-")===0){F.fase=a.slice(5);}
+    }
     rerender();
   }));
 }
@@ -521,7 +531,7 @@ function renderStatusChart(){
   document.getElementById("chart-status").innerHTML=ent.map(([k,v])=>
     `<div class="bar-item" data-status="${k==='(sem status)'?'':k.replace(/"/g,'&quot;')}"><div class="bar-top"><span class="bk">${k}</span><span class="bv">${v}</span></div>
      <div class="bar-outer"><div class="bar-fill" style="width:${v/max*100}%;background:${statusColor(k)}"></div></div></div>`).join("");
-  document.querySelectorAll("#chart-status .bar-item").forEach(b=>b.addEventListener("click",()=>{const s=b.dataset.status;F.status=(F.status===s?"":s);document.getElementById("f-status").value=F.status;rerender();}));
+  document.querySelectorAll("#chart-status .bar-item").forEach(b=>b.addEventListener("click",()=>{const s=b.dataset.status;const was=F.status===s;clearAllF();if(!was){F.status=s;document.getElementById("f-status").value=s;}rerender();}));
 }
 function renderDonut(){
   const order=["vencido","avencer","emdia","concluido"];const cnt={};order.forEach(k=>cnt[k]=0);
@@ -529,7 +539,7 @@ function renderDonut(){
   const segs=order.filter(k=>cnt[k]>0).map(k=>{const frac=cnt[k]/total,len=frac*C;const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${SIT_META[k].c}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;off+=len;return s;}).join("");
   document.getElementById("donut").innerHTML=`<svg width="140" height="140" viewBox="0 0 140 140">${segs||`<circle r="52" cx="70" cy="70" fill="none" stroke="var(--line)" stroke-width="20"/>`}<text x="70" y="66" text-anchor="middle" font-family="Space Grotesk" font-size="30" font-weight="700" fill="var(--ink)">${records.length}</text><text x="70" y="84" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="var(--ink-3)">processos</text></svg>`;
   document.getElementById("donut-legend").innerHTML=order.map(k=>{const v=cnt[k],p=records.length?Math.round(v/records.length*100):0;return `<div class="leg" data-sit="${k}"><span class="dot" style="background:${SIT_META[k].c}"></span>${SIT_META[k].l}<span class="lv">${v}</span><span class="lp">${p}%</span></div>`;}).join("");
-  document.querySelectorAll("#donut-legend .leg").forEach(l=>l.addEventListener("click",()=>{const s=l.dataset.sit;F.sit=(F.sit===s?"":s);document.getElementById("f-sit").value=F.sit;rerender();}));
+  document.querySelectorAll("#donut-legend .leg").forEach(l=>l.addEventListener("click",()=>{const s=l.dataset.sit;const was=F.sit===s;clearAllF();if(!was){F.sit=s;document.getElementById("f-sit").value=s;}rerender();}));
 }
 function renderBloco(){
   const el=document.getElementById("bloco-section");
@@ -553,7 +563,7 @@ function renderGerencias(){
       <div class="ger-total">${tot}<small> na fila</small></div>
       <div class="ger-break">${v?`<span class="ger-pill gp-v">🔴 ${v}</span>`:''}${a?`<span class="ger-pill gp-a">🟡 ${a}</span>`:''}${d?`<span class="ger-pill gp-d">🟢 ${d}</span>`:''}${tot===0?'<span class="ger-pill" style="background:var(--surface-2);color:var(--ink-3)">sem pendências</span>':''}</div></div>`;
   }).join("");
-  document.querySelectorAll(".ger-card").forEach(c=>c.addEventListener("click",()=>{const g=c.dataset.ger;F.ger=(F.ger===g?"":g);document.getElementById("f-ger").value=F.ger;rerender();}));
+  document.querySelectorAll(".ger-card").forEach(c=>c.addEventListener("click",()=>{const g=c.dataset.ger;const was=F.ger===g;clearAllF();if(!was){F.ger=g;document.getElementById("f-ger").value=g;}rerender();}));
 }
 function daysBadge(p){if(p.st==="vencido")return `<span class="ag-days" style="background:var(--venc-l);color:var(--venc)">${p.dias} dias de atraso</span>`;if(p.st==="avencer")return `<span class="ag-days" style="background:var(--aven-l);color:var(--aven)">faltam ${p.dias} dias</span>`;if(p.st==="noprazo")return `<span class="ag-days" style="background:var(--dia-l);color:var(--dia)">faltam ${p.dias} dias</span>`;return "";}
 let prazoBucket=null;
